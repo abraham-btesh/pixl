@@ -2,6 +2,10 @@ package ui
 
 import (
 	"errors"
+	"image"
+	"image/png"
+	"os"
+	"pixl/util"
 	"strconv"
 
 	"fyne.io/fyne/v2"
@@ -9,6 +13,57 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+func SaveFileDialog(app *AppInit) {
+	dialog.ShowFileSave(func(uri fyne.URIWriteCloser, e error) {
+		if uri == nil {
+			return
+		} else {
+			err := png.Encode(uri, app.PixlCanvas.PixelData)
+			if err != nil {
+				dialog.ShowError(err, app.PixlWindow)
+				return
+			}
+			app.State.SetFilePath(uri.URI().Path())
+		}
+
+	}, app.PixlWindow)
+}
+
+func BuildSaveAsMenu(app *AppInit) *fyne.MenuItem {
+	return fyne.NewMenuItem("Save As...", func() {
+		SaveFileDialog(app)
+	})
+}
+
+func BuildSaveMenu(app *AppInit) *fyne.MenuItem {
+	return fyne.NewMenuItem("Save", func() {
+		if app.State.FilePath == "" {
+			SaveFileDialog(app)
+		} else {
+			tryClose := func(fh *os.File) {
+				err := fh.Close()
+				if err != nil {
+					dialog.ShowError(err, app.PixlWindow)
+				}
+			}
+
+			fh, err := os.Create(app.State.FilePath)
+			defer tryClose(fh)
+
+			if err != nil {
+				dialog.ShowError(err, app.PixlWindow)
+				return
+			}
+
+			err = png.Encode(fh, app.PixlCanvas.PixelData)
+			if err != nil {
+				dialog.ShowError(err, app.PixlWindow)
+				return
+			}
+		}
+
+	})
+}
 func BuildNewMenu(app *AppInit) *fyne.MenuItem {
 	return fyne.NewMenuItem("New", func() {
 		sizeValidator := func(s string) error {
@@ -58,11 +113,46 @@ func BuildNewMenu(app *AppInit) *fyne.MenuItem {
 }
 
 func BuildMenus(app *AppInit) *fyne.Menu {
-	return fyne.NewMenu("File", BuildNewMenu(app))
+	return fyne.NewMenu(
+		"File",
+		BuildNewMenu(app),
+		buildOpenMenu(app),
+		BuildSaveMenu(app),
+		BuildSaveAsMenu(app),
+	)
 }
 
 func SetUpMenus(app *AppInit) {
 	menus := BuildMenus(app)
 	mainMenu := fyne.NewMainMenu(menus)
 	app.PixlWindow.SetMainMenu(mainMenu)
+}
+
+func buildOpenMenu(app *AppInit) *fyne.MenuItem {
+	return fyne.NewMenuItem("Open...", func() {
+		dialog.ShowFileOpen(func(uri fyne.URIReadCloser, e error) {
+			if uri == nil {
+				return
+			} else {
+				img, _, err := image.Decode(uri)
+				if err != nil {
+					dialog.ShowError(err, app.PixlWindow)
+					return
+				}
+				app.PixlCanvas.LoadImage(img)
+				app.State.SetFilePath(uri.URI().Path())
+				imgColors := util.GetImageColors(img)
+
+				i := 0
+				for c := range imgColors {
+					if i == len(app.Swatches) {
+						break
+					}
+
+					app.Swatches[i].SetColor(c)
+					i++
+				}
+			}
+		}, app.PixlWindow)
+	})
 }

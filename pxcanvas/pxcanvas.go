@@ -137,7 +137,7 @@ func (pxCanvas *PxCanvas) LoadImage(img image.Image) {
 }
 
 func (pxCanvas *PxCanvas) NewDrawing(cols, rows int) {
-	pxCanvas.appState.SetfilePath("")
+	pxCanvas.appState.SetFilePath("")
 	pxCanvas.PxCols = cols
 	pxCanvas.PxRows = rows
 

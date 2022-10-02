@@ -23,7 +23,7 @@ type State struct {
 	FilePath       string
 }
 
-func (state *State) SetfilePath(path string) {
+func (state *State) SetFilePath(path string) {
 	state.FilePath = path
 }
 
